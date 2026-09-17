@@ -3,6 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <title>연간달력인쇄용</title>
+    <!-- 브라우저 탭 및 스마트폰 아이콘 설정 -->
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <link rel="apple-touch-icon" href="favicon.svg">
+    
     <style>
         @page {
             size: A4 portrait;
@@ -61,7 +65,7 @@
             padding: 12mm 12mm;
             box-sizing: border-box;
             background: white;
-            margin-bottom: 20px;
+            margin-bottom: 20mm;
             page-break-after: always;
             break-after: page;
             display: flex;
@@ -287,7 +291,6 @@
         }
 
         @media print {
-            /* 인쇄 시 요일 셀 및 공휴일 배경색 유지 설정 */
             body, .calendar-table th, .holiday-name {
                 -webkit-print-color-adjust: exact;
                 print-color-adjust: exact;

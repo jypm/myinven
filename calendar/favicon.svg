@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- 달력 배경 -->
+  <rect x="48" y="80" width="416" height="384" rx="40" fill="#FFFFFF" stroke="#1F497D" stroke-width="24"/>
+  <!-- 상단 헤더 (네이비) -->
+  <path d="M 88 80 L 424 80 A 40 40 0 0 1 464 120 L 464 176 L 48 176 L 48 120 A 40 40 0 0 1 88 80 Z" fill="#1F497D"/>
+  <!-- 상단 고리 2개 -->
+  <rect x="140" y="40" width="32" height="64" rx="16" fill="#555555"/>
+  <rect x="340" y="40" width="32" height="64" rx="16" fill="#555555"/>
+  <!-- 날짜 숫자 (26) -->
+  <text x="256" y="345" font-family="Arial, sans-serif" font-weight="bold" font-size="160" fill="#1F497D" text-anchor="middle">26</text>
+  <!-- 상단 미니 도트 그리드 -->
+  <circle cx="150" cy="230" r="12" fill="#C00000"/>
+  <circle cx="200" cy="230" r="12" fill="#333333"/>
+  <circle cx="250" cy="230" r="12" fill="#333333"/>
+  <circle cx="300" cy="230" r="12" fill="#333333"/>
+  <circle cx="350" cy="230" r="12" fill="#0070C0"/>
+</svg>

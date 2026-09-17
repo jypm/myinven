@@ -1,0 +1,15 @@
+{
+  "name": "연간 달력 인쇄용",
+  "short_name": "연간달력",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#555555",
+  "theme_color": "#222222",
+  "icons": [
+    {
+      "src": "favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

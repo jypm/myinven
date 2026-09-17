@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#000000">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="favicon.svg">
+  <title>보안 메모장</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { height: 100%; overflow: hidden; overscroll-behavior-y: contain; }
+    body {
+      background-color: #0a0a0a;
+      background-image:
+        repeating-linear-gradient(120deg,transparent,transparent 80px,rgba(255,255,255,0.012) 80px,rgba(255,255,255,0.012) 81px),
+        repeating-linear-gradient(60deg,transparent,transparent 100px,rgba(255,255,255,0.008) 100px,rgba(255,255,255,0.008) 101px),
+        repeating-linear-gradient(90deg,transparent,transparent 140px,rgba(255,255,255,0.006) 140px,rgba(255,255,255,0.006) 141px);
+      color: #ccc;
+      font-family: 'Segoe UI', sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    #login-screen { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; gap: 12px; }
+    #login-screen h1 { font-size: 22px; color: #888; margin-bottom: 8px; }
+    .login-box { display: flex; flex-direction: column; gap: 12px; width: 240px; }
+    .save-row { display: flex; justify-content: flex-end; align-items: center; gap: 6px; color: #666; font-size: 13px; }
+    .save-row label { cursor: pointer; }
+    .save-row input[type="checkbox"] { width: 15px; height: 15px; cursor: pointer; accent-color: #555; }
+    .login-box input { padding: 12px 16px; border-radius: 10px; border: 1px solid #333; background: #111; color: #ccc; font-size: 16px; width: 100%; user-select: text; -webkit-user-select: text; }
+    .login-box button { padding: 12px; border-radius: 10px; border: 1px solid #333; background: #111; color: #aaa; font-size: 16px; cursor: pointer; width: 100%; margin-top: 8px; }
+    .login-link { font-size: 13px; color: #444; text-align: center; cursor: pointer; }
+    .login-link:hover { color: #666; }
+    .pin-hint { font-size: 11px; color: #444; text-align: right; margin-top: -6px; }
+
+    #main-screen { display: none; padding: 20px; max-width: 700px; margin: 0 auto; overflow-y: auto; height: 100vh; }
+    .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+    .header h2 { color: #aaa; }
+    .header-right { display: flex; align-items: center; gap: 8px; }
+    #timer { font-size: 12px; color: #555; margin-right: 4px; }
+    .header button { padding: 8px 14px; border-radius: 8px; border: 1px solid #333; background: #111; color: #888; cursor: pointer; font-size: 13px; }
+    .btn-admin { border-color: #1a3a1a !important; color: #55fa9f !important; }
+
+    .search-box { width: 100%; padding: 10px 16px; border-radius: 10px; border: 1px solid #333; background: #111; color: #ccc; font-size: 15px; margin-bottom: 14px; user-select: text; -webkit-user-select: text; }
+    .search-box::placeholder { color: #444; }
+    .add-btn { width: 100%; padding: 14px; border-radius: 10px; border: 1px solid #333; background: #111; color: #aaa; font-size: 16px; cursor: pointer; margin-bottom: 16px; }
+
+    .memo-card { background: #111; border-radius: 10px; padding: 16px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; border: 1px solid #222; cursor: pointer; transition: opacity 0.2s; }
+    .memo-card:active { opacity: 0.7; }
+    .memo-left { display: flex; flex-direction: column; gap: 4px; overflow: hidden; }
+    .memo-title { font-size: 18px; color: #eee; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .memo-preview { font-size: 13px; color: #666; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .memo-date { font-size: 11px; color: #3a9966; }
+    .memo-right { display: flex; align-items: center; gap: 8px; }
+    .memo-arrow { color: #333; font-size: 14px; }
+
+    .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); justify-content: center; align-items: center; z-index: 300; }
+    .modal.show { display: flex; }
+    .modal-box { background: #111; border-radius: 14px; padding: 24px; width: 340px; display: flex; flex-direction: column; gap: 10px; border: 1px solid #222; }
+    .modal-box h3 { color: #888; margin-bottom: 4px; }
+    .field-label { font-size: 11px; color: #555; margin-bottom: 2px; }
+    .modal-box input, .modal-box textarea { padding: 10px; border-radius: 8px; border: 1px solid #333; background: #000; color: #ccc; font-size: 14px; width: 100%; user-select: text; -webkit-user-select: text; font-family: inherit; }
+    .modal-box textarea { resize: none; height: 140px; }
+    .modal-box button { padding: 10px; border-radius: 8px; border: none; cursor: pointer; font-size: 14px; color: #aaa; }
+    .btn-save { background: #222; }
+    .btn-cancel { background: #1a1a1a; }
+
+    .masked-content { font-size: 15px; margin-bottom: 8px; cursor: pointer; padding: 12px; border-radius: 8px; background: #0a0a0a; border: 1px solid #222; color: #aaa; user-select: none; -webkit-user-select: none; line-height: 1.5; white-space: pre-wrap; word-break: break-all; min-height: 80px; }
+    .masked-content .hint { font-size: 11px; color: #444; margin-top: 8px; text-align: right; }
+
+    .overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.92); justify-content: center; align-items: center; z-index: 200; }
+    .overlay.show { display: flex; }
+    .popup-box { background: #111; border-radius: 16px; padding: 24px; width: 300px; display: flex; flex-direction: column; gap: 10px; }
+    .popup-box .popup-icon { font-size: 36px; text-align: center; }
+    .popup-box p { font-size: 15px; color: #ccc; text-align: center; line-height: 1.5; }
+    .popup-name { color: #ff6b6b; font-size: 16px; font-weight: bold; }
+    .popup-buttons { display: flex; gap: 10px; width: 100%; margin-top: 6px; }
+    .popup-buttons button { flex: 1; padding: 12px; border-radius: 10px; border: none; cursor: pointer; font-size: 14px; }
+    .popup-yes-red { background: #3a0000; color: #ff6b6b; }
+    .popup-yes { background: #222; color: #ccc; }
+    .popup-no { background: #1a1a1a; color: #888; }
+    .popup-ok { background: #222; color: #ccc; width: 100%; padding: 12px; border-radius: 10px; border: none; cursor: pointer; font-size: 14px; }
+    .popup-input { padding: 10px; border-radius: 8px; border: 1px solid #333; background: #000; color: #ccc; font-size: 14px; width: 100%; user-select: text; -webkit-user-select: text; }
+
+    .admin-user-item { background: #0d0d0d; border-radius: 8px; padding: 12px 14px; border: 1px solid #1a1a1a; display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+    .admin-user-info p { font-size: 14px; color: #ccc; }
+    .admin-user-info span { font-size: 11px; color: #555; }
+    .admin-user-actions button { padding: 5px 8px; border-radius: 6px; border: none; cursor: pointer; font-size: 11px; }
+    .code-box { background: #0a0a0a; border: 1px solid #333; border-radius: 8px; padding: 14px; text-align: center; font-size: 22px; color: #55fa9f; letter-spacing: 4px; font-weight: bold; margin: 8px 0; }
+  </style>
+</head>
+<body>
+
+<div id="login-screen">
+  <h1>🔒 보안 메모장</h1>
+  <div class="login-box">
+    <div class="save-row">
+      <label for="save-id">아이디 저장</label>
+      <input type="checkbox" id="save-id">
+    </div>
+    <input type="text" id="name-input" placeholder="아이디" autocomplete="username">
+    <input type="password" id="pin-input" placeholder="비밀번호" inputmode="numeric" maxlength="6">
+    <div class="pin-hint">숫자 6자리</div>
+    <button onclick="doLogin()">로그인</button>
+    <div class="login-link" onclick="openRegisterModal()">초대코드로 가입하기</div>
+  </div>
+</div>
+
+<div id="main-screen">
+  <div class="header">
+    <h2 id="welcome-text"></h2>
+    <div class="header-right">
+      <span id="timer"></span>
+      <button id="admin-btn" class="btn-admin" style="display:none" onclick="openAdminModal()">관리</button>
+      <button id="changepw-btn" style="display:none;border-color:#333;color:#888;" onclick="openChangePwModal()">🔑</button>
+      <button onclick="openExitModal()">로그아웃</button>
+    </div>
+  </div>
+  <input type="text" class="search-box" id="search-input" placeholder="🔍 메모 검색">
+  <button class="add-btn" onclick="openAddModal()">+ 메모 작성</button>
+  <div id="list"></div>
+</div>
+
+<!-- 회원가입 모달 -->
+<div class="modal" id="register-modal">
+  <div class="modal-box">
+    <h3>초대코드 가입</h3>
+    <div class="field-label">초대코드</div>
+    <input type="text" id="r-code" placeholder="초대코드 입력">
+    <div class="field-label">사용할 아이디</div>
+    <input type="text" id="r-name" placeholder="아이디" autocomplete="username">
+    <div class="field-label">비밀번호</div>
+    <input type="password" id="r-pin" placeholder="숫자 6자리" inputmode="numeric" maxlength="6">
+    <div class="field-label">비밀번호 확인</div>
+    <input type="password" id="r-pin2" placeholder="숫자 6자리 확인" inputmode="numeric" maxlength="6">
+    <div class="pin-hint">숫자 6자리</div>
+    <button class="btn-save" onclick="doRegister()">가입하기</button>
+    <button class="btn-cancel" onclick="closeRegisterModal()">취소</button>
+  </div>
+</div>
+
+<!-- 메모 추가/수정 모달 -->
+<div class="modal" id="modal">
+  <div class="modal-box">
+    <h3 id="modal-title">메모 작성</h3>
+    <div class="field-label">제목 *</div>
+    <input type="text" id="m-title" placeholder="메모 제목">
+    <div class="field-label">내용 *</div>
+    <textarea id="m-content" placeholder="비밀 내용을 입력하세요..."></textarea>
+    <button class="btn-save" onclick="saveEntry()">저장</button>
+    <button class="btn-cancel" onclick="closeModal()">취소</button>
+  </div>
+</div>
+
+<!-- 메모 보기 모달 (꾹 누를 때만 내용 표시) -->
+<div class="overlay" id="view-modal">
+  <div class="popup-box" style="border:1px solid #222;width:320px;">
+    <h3 id="v-title" style="color:#888;margin-bottom:8px;"></h3>
+    <div class="field-label">메모 내용 (꾹 누르면 표시)</div>
+    <div class="masked-content" id="v-content-wrap">
+      <div id="v-content"></div>
+      <div class="hint">누르고 있는 동안만 보임</div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:4px;">
+      <button class="popup-ok" style="background:#2a1f00;color:#6a9fd8;" onclick="closeViewModal();openEditModal(window.currentViewId, window.currentViewTitle, window.currentViewContent)">✏️ 수정</button>
+      <button class="popup-ok" style="background:#2a0000;color:#c0392b;" onclick="closeViewModal();openConfirm(window.currentViewId, window.currentViewTitle)">🗑️ 삭제</button>
+    </div>
+    <button class="popup-ok" style="margin-top:4px;" onclick="closeViewModal()">닫기</button>
+  </div>
+</div>
+
+<!-- 비밀번호 변경 모달 -->
+<div class="overlay" id="changepw-modal">
+  <div class="popup-box" style="border:1px solid #333;">
+    <div class="popup-icon">🔑</div>
+    <p style="text-align:left;font-size:13px;color:#888;">현재 비밀번호</p>
+    <input type="password" class="popup-input" id="cp-old" placeholder="현재 비밀번호" inputmode="numeric" maxlength="6">
+    <p style="text-align:left;font-size:13px;color:#888;">새 비밀번호</p>
+    <input type="password" class="popup-input" id="cp-new" placeholder="숫자 6자리" inputmode="numeric" maxlength="6">
+    <p style="text-align:left;font-size:13px;color:#888;">새 비밀번호 확인</p>
+    <input type="password" class="popup-input" id="cp-new2" placeholder="숫자 6자리 확인" inputmode="numeric" maxlength="6">
+    <p style="font-size:11px;color:#444;text-align:right;">숫자 6자리</p>
+    <div class="popup-buttons">
+      <button class="popup-no" onclick="closeChangePwModal()">취소</button>
+      <button class="popup-yes" onclick="doChangePw()">변경</button>
+    </div>
+  </div>
+</div>
+
+<!-- 관리자 패널 -->
+<div class="overlay" id="admin-modal">
+  <div class="popup-box" style="border:1px solid #1a3a1a;width:320px;max-height:80vh;overflow-y:auto;">
+    <h3 style="color:#55fa9f;">⚙️ 관리자</h3>
+    <p style="font-size:12px;color:#555;margin-top:4px;">사용자 목록</p>
+    <div id="admin-user-list"></div>
+    <button class="popup-ok" style="background:#1a2a1a;color:#55fa9f;margin-top:4px;" onclick="generateInviteCode()">초대코드 생성</button>
+    <div id="invite-code-box" style="display:none;">
+      <div class="code-box" id="invite-code-text"></div>
+      <p style="font-size:11px;color:#555;text-align:center;">1회용 코드 · 사용 후 만료</p>
+      <button class="popup-ok" style="background:#1a2a1a;color:#55fa9f;" onclick="copyInviteLink()">🔗 링크+코드 복사</button>
+    </div>
+    <button class="popup-ok" style="background:#222;color:#888;margin-top:4px;" onclick="closeAdminModal();setTimeout(openChangePwModal,200)">🔑 내 비밀번호 변경</button>
+    <button class="popup-ok" style="margin-top:4px;" onclick="closeAdminModal()">닫기</button>
+  </div>
+</div>
+
+<!-- 알림 팝업 -->
+<div class="overlay" id="alert-modal">
+  <div class="popup-box" style="border:1px solid #333;">
+    <div class="popup-icon" id="alert-icon">⚠️</div>
+    <p id="alert-msg"></p>
+    <button class="popup-ok" onclick="closeAlert()">확인</button>
+  </div>
+</div>
+
+<!-- 삭제 확인 팝업 -->
+<div class="overlay" id="confirm-modal">
+  <div class="popup-box" style="border:1px solid #2a0000;">
+    <div class="popup-icon">🗑️</div>
+    <p>삭제하시겠어요?<br><span class="popup-name" id="confirm-name"></span></p>
+    <div class="popup-buttons">
+      <button class="popup-no" onclick="closeConfirm()">아니요</button>
+      <button class="popup-yes-red" onclick="confirmDelete()">네</button>
+    </div>
+  </div>
+</div>
+
+<!-- 로그아웃 확인 팝업 -->
+<div class="overlay" id="exit-modal">
+  <div class="popup-box" style="border:1px solid #333;">
+    <div class="popup-icon">👋</div>
+    <p>로그아웃 하시겠어요?</p>
+    <div class="popup-buttons">
+      <button class="popup-no" onclick="closeExitModal()">아니요</button>
+      <button class="popup-yes" onclick="exitApp()">네</button>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-app.js";
+  import { getFirestore, collection, doc, getDocs, addDoc, updateDoc, deleteDoc, query, where } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-firestore.js";
+  import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, updatePassword, reauthenticateWithCredential, EmailAuthProvider } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-auth.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyDWu9mmACrAqv3P-VW54DogZ61ZzraW5Yg",
+    authDomain: "jyppass.firebaseapp.com",
+    projectId: "jyppass",
+    storageBucket: "jyppass.firebasestorage.app",
+    messagingSenderId: "270444457037",
+    appId: "1:270444457037:web:93a53b15668c2784188004"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+  const auth = getAuth(app);
+
+  function toEmail(name) {
+    return name.trim().toLowerCase() + '@jyppass.com';
+  }
+
+  let currentUser = null;
+  let editingId = null;
+  let timerInterval = null;
+  let realContent = '';
+  let deleteTargetId = '';
+  let allDocs = [];
+  const TIMEOUT = 5 * 60;
+
+  window.currentViewId = '';
+  window.currentViewTitle = '';
+  window.currentViewContent = '';
+
+  let blocking = false;
+  history.pushState(null, '', location.href);
+  history.pushState(null, '', location.href);
+  history.pushState(null, '', location.href);
+
+  window.addEventListener('popstate', () => {
+    if (!currentUser) return;
+    if (blocking) return;
+    blocking = true;
+    history.go(1);
+    setTimeout(() => { blocking = false; }, 100);
+    const modals = ['exit-modal','view-modal','modal','confirm-modal','alert-modal','admin-modal','changepw-modal','register-modal'];
+    for (const id of modals) {
+      if (document.getElementById(id).classList.contains('show')) {
+        document.getElementById(id).classList.remove('show');
+        return;
+      }
+    }
+    setTimeout(() => openExitModal(), 100);
+  });
+
+  window.showAlert = function(msg, icon = '⚠️') {
+    document.getElementById('alert-icon').textContent = icon;
+    document.getElementById('alert-msg').textContent = msg;
+    document.getElementById('alert-modal').classList.add('show');
+  }
+  window.closeAlert = function() { document.getElementById('alert-modal').classList.remove('show'); }
+  window.openExitModal = function() { document.getElementById('exit-modal').classList.add('show'); }
+  window.closeExitModal = function() { document.getElementById('exit-modal').classList.remove('show'); }
+  window.exitApp = function() { closeExitModal(); doLogout(); }
+
+  // 꾹 누를 때 내용 표시 보안 기능
+  const contentWrap = document.getElementById('v-content-wrap');
+  const contentEl = document.getElementById('v-content');
+  const showContent = () => { contentEl.textContent = realContent; };
+  const hideContent = () => { contentEl.textContent = '••••••••••••••••••••\n(내용을 보려면 꾹 누르세요)'; };
+  contentWrap.addEventListener('mousedown', showContent);
+  contentWrap.addEventListener('mouseup', hideContent);
+  contentWrap.addEventListener('mouseleave', hideContent);
+  contentWrap.addEventListener('touchstart', e => { e.preventDefault(); showContent(); }, { passive: false });
+  contentWrap.addEventListener('touchend', hideContent);
+  contentWrap.addEventListener('touchcancel', hideContent);
+
+  document.addEventListener('contextmenu', e => {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+    e.preventDefault();
+  });
+
+  document.getElementById('name-input').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('pin-input').focus(); });
+  document.getElementById('pin-input').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+
+  const savedName = localStorage.getItem('savedName');
+  if (savedName) {
+    document.getElementById('name-input').value = savedName;
+    document.getElementById('save-id').checked = true;
+  }
+
+  function startTimer() {
+    let remaining = TIMEOUT;
+    clearInterval(timerInterval);
+    timerInterval = setInterval(() => {
+      remaining--;
+      const m = Math.floor(remaining / 60);
+      const s = remaining % 60;
+      document.getElementById('timer').textContent = `${m}:${s.toString().padStart(2,'0')}`;
+      if (remaining <= 0) { clearInterval(timerInterval); doLogout(); }
+    }, 1000);
+  }
+
+  function resetTimer() { if (currentUser) startTimer(); }
+  ['click','keydown','mousemove','touchstart'].forEach(e => document.addEventListener(e, resetTimer));
+
+  document.getElementById('search-input').addEventListener('input', function() {
+    renderList(this.value.trim().toLowerCase());
+  });
+
+  window.doLogin = async function() {
+    const name = document.getElementById('name-input').value.trim();
+    const pin = document.getElementById('pin-input').value.trim();
+    const saveId = document.getElementById('save-id').checked;
+    if (!name || !pin) { showAlert('아이디와 비밀번호를 입력하세요'); return; }
+    if (!/^[a-zA-Z0-9]+$/.test(name)) { showAlert('아이디는 영문+숫자만 가능해요', '❌'); return; }
+    if (!/^\d{6}$/.test(pin)) { showAlert('비밀번호는 숫자 6자리예요', '❌'); return; }
+    try {
+      const email = toEmail(name);
+      const cred = await signInWithEmailAndPassword(auth, email, pin);
+      const uid = cred.user.uid;
+      const snap = await getDocs(query(collection(db, 'users'), where('uid', '==', uid)));
+      let userData = { isAdmin: false, name };
+      if (!snap.empty) userData = snap.docs[0].data();
+      if (saveId) localStorage.setItem('savedName', name);
+      else localStorage.removeItem('savedName');
+      currentUser = { uid, ...userData };
+      document.getElementById('login-screen').style.display = 'none';
+      document.getElementById('main-screen').style.display = 'block';
+      document.getElementById('welcome-text').textContent = name + '님 메모장';
+      document.getElementById('pin-input').value = '';
+      if (userData.isAdmin) {
+        document.getElementById('admin-btn').style.display = '';
+        document.getElementById('changepw-btn').style.display = 'none';
+      } else {
+        document.getElementById('admin-btn').style.display = 'none';
+        document.getElementById('changepw-btn').style.display = '';
+      }
+      for (let i = 0; i < 5; i++) history.pushState(null, '', location.href);
+      startTimer();
+      loadList();
+    } catch(e) {
+      if (e.code === 'auth/invalid-credential' || e.code === 'auth/wrong-password' || e.code === 'auth/user-not-found') {
+        showAlert('아이디 또는 비밀번호가 틀렸어요', '❌');
+      } else {
+        showAlert('로그인 실패: ' + e.message, '❌');
+      }
+    }
+  }
+
+  window.doLogout = async function() {
+    await signOut(auth);
+    currentUser = null;
+    clearInterval(timerInterval);
+    document.getElementById('timer').textContent = '';
+    document.getElementById('login-screen').style.display = 'flex';
+    document.getElementById('main-screen').style.display = 'none';
+    document.getElementById('search-input').value = '';
+    document.getElementById('pin-input').value = '';
+    history.go(-(history.length - 1));
+  }
+
+  window.openRegisterModal = function() { document.getElementById('register-modal').classList.add('show'); }
+  window.closeRegisterModal = function() { document.getElementById('register-modal').classList.remove('show'); }
+
+  window.doRegister = async function() {
+    const code = document.getElementById('r-code').value.trim();
+    const name = document.getElementById('r-name').value.trim();
+    const pin = document.getElementById('r-pin').value.trim();
+    const pin2 = document.getElementById('r-pin2').value.trim();
+    if (!code || !name || !pin) { showAlert('모든 항목을 입력하세요'); return; }
+    if (!/^[a-zA-Z0-9]+$/.test(name)) { showAlert('아이디는 영문+숫자만 가능해요', '❌'); return; }
+    if (!/^\d{6}$/.test(pin)) { showAlert('비밀번호는 숫자 6자리예요', '❌'); return; }
+    if (pin !== pin2) { showAlert('비밀번호가 일치하지 않아요', '❌'); return; }
+    const codeSnap = await getDocs(query(collection(db, 'inviteCodes'), where('code', '==', code), where('used', '==', false)));
+    if (codeSnap.empty) { showAlert('유효하지 않은 초대코드예요', '❌'); return; }
+    const nameSnap = await getDocs(query(collection(db, 'users'), where('name', '==', name)));
+    if (!nameSnap.empty) { showAlert('이미 사용 중인 아이디예요', '❌'); return; }
+    try {
+      const email = toEmail(name);
+      const cred = await createUserWithEmailAndPassword(auth, email, pin);
+      const uid = cred.user.uid;
+      await addDoc(collection(db, 'users'), { uid, name, isAdmin: false });
+      await updateDoc(doc(db, 'inviteCodes', codeSnap.docs[0].id), { used: true });
+      await signOut(auth);
+      closeRegisterModal();
+      showAlert('가입 완료! 로그인해주세요', '🎉');
+    } catch(e) {
+      showAlert('가입 실패: ' + e.message, '❌');
+    }
+  }
+
+  window.openChangePwModal = function() {
+    document.getElementById('cp-old').value = '';
+    document.getElementById('cp-new').value = '';
+    document.getElementById('cp-new2').value = '';
+    document.getElementById('changepw-modal').classList.add('show');
+  }
+  window.closeChangePwModal = function() { document.getElementById('changepw-modal').classList.remove('show'); }
+
+  window.doChangePw = async function() {
+    const oldPw = document.getElementById('cp-old').value.trim();
+    const newPw = document.getElementById('cp-new').value.trim();
+    const newPw2 = document.getElementById('cp-new2').value.trim();
+    if (!oldPw || !newPw || !newPw2) { showAlert('모든 항목을 입력하세요'); return; }
+    if (!/^\d{6}$/.test(newPw)) { showAlert('비밀번호는 숫자 6자리예요', '❌'); return; }
+    if (newPw !== newPw2) { showAlert('새 비밀번호가 일치하지 않아요', '❌'); return; }
+    try {
+      const user = auth.currentUser;
+      const credential = EmailAuthProvider.credential(user.email, oldPw);
+      await reauthenticateWithCredential(user, credential);
+      await updatePassword(user, newPw);
+      closeChangePwModal();
+      showAlert('비밀번호가 변경됐어요', '✅');
+    } catch(e) {
+      if (e.code === 'auth/wrong-password' || e.code === 'auth/invalid-credential') {
+        showAlert('현재 비밀번호가 틀렸어요', '❌');
+      } else {
+        showAlert('변경 실패: ' + e.message, '❌');
+      }
+    }
+  }
+
+  window.openAdminModal = async function() {
+    document.getElementById('invite-code-box').style.display = 'none';
+    document.getElementById('admin-modal').classList.add('show');
+    await loadAdminUsers();
+  }
+  window.closeAdminModal = function() { document.getElementById('admin-modal').classList.remove('show'); }
+
+  async function loadAdminUsers() {
+    const listEl = document.getElementById('admin-user-list');
+    listEl.innerHTML = '';
+    const snap = await getDocs(collection(db, 'users'));
+    snap.forEach(d => {
+      const user = d.data();
+      const item = document.createElement('div');
+      item.className = 'admin-user-item';
+      item.innerHTML = `
+        <div class="admin-user-info">
+          <p>${user.name} ${user.isAdmin ? '👑' : ''}</p>
+          <span>${user.isAdmin ? '관리자' : '일반'}</span>
+        </div>
+        <div class="admin-user-actions">
+          ${!user.isAdmin ? `<button style="background:#2a0000;color:#ff6b6b;" onclick="deleteUser('${d.id}','${user.name}')">삭제</button>` : ''}
+        </div>
+      `;
+      listEl.appendChild(item);
+    });
+  }
+
+  window.deleteUser = async function(docId, name) {
+    if (!confirm(`${name} 계정을 삭제할까요?`)) return;
+    await deleteDoc(doc(db, 'users', docId));
+    await loadAdminUsers();
+  }
+
+  window.generateInviteCode = async function() {
+    const code = Math.random().toString(36).substring(2, 8).toUpperCase();
+    await addDoc(collection(db, 'inviteCodes'), { code, used: false, createdAt: Date.now() });
+    document.getElementById('invite-code-text').textContent = code;
+    document.getElementById('invite-code-box').style.display = 'block';
+  }
+
+  window.copyInviteLink = function() {
+    const code = document.getElementById('invite-code-text').textContent;
+    const text = `보안 메모장 초대 🔒\nhttps://jypm.github.io/jyppass/\n초대코드: ${code}`;
+    navigator.clipboard.writeText(text).then(() => {
+      showAlert('클립보드에 복사됐어요!', '✅');
+    });
+  }
+
+  async function loadList() {
+    const q = query(collection(db, 'memos'), where('uid', '==', currentUser.uid));
+    const snap = await getDocs(q);
+    allDocs = snap.docs.map(d => ({ docId: d.id, ...d.data() }));
+    renderList('');
+  }
+
+  function renderList(keyword) {
+    const listEl = document.getElementById('list');
+    listEl.innerHTML = '';
+    const filtered = keyword
+      ? allDocs.filter(d => (d.title||'').toLowerCase().includes(keyword) || (d.content||'').toLowerCase().includes(keyword))
+      : allDocs;
+    
+    // 최신 수정순 정렬
+    filtered.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+
+    if (filtered.length === 0) {
+      listEl.innerHTML = '<p style="color:#444;text-align:center;margin-top:40px;">저장된 메모가 없습니다</p>';
+      return;
+    }
+
+    filtered.forEach(data => {
+      const dateStr = data.updatedAt ? new Date(data.updatedAt).toLocaleDateString('ko-KR', { year:'numeric', month:'2-digit', day:'2-digit' }) : '';
+      const card = document.createElement('div');
+      card.className = 'memo-card';
+      card.innerHTML = `
+        <div class="memo-left">
+          <span class="memo-title">${data.title || '(제목 없음)'}</span>
+          <span class="memo-preview">🔒 보안 내용 보호됨</span>
+          ${dateStr ? `<span class="memo-date">${dateStr}</span>` : ''}
+        </div>
+        <div class="memo-right">
+          <span class="memo-arrow">›</span>
+        </div>
+      `;
+      card.addEventListener('click', () => {
+        viewEntry(data.docId, data.title||'', data.content||'');
+      });
+      listEl.appendChild(card);
+    });
+  }
+
+  window.openAddModal = function() {
+    editingId = null;
+    document.getElementById('modal-title').textContent = '메모 작성';
+    document.getElementById('m-title').value = '';
+    document.getElementById('m-content').value = '';
+    document.getElementById('modal').classList.add('show');
+  }
+
+  window.openEditModal = function(docId, title, content) {
+    editingId = docId;
+    document.getElementById('modal-title').textContent = '메모 수정';
+    document.getElementById('m-title').value = title;
+    document.getElementById('m-content').value = content;
+    document.getElementById('modal').classList.add('show');
+  }
+  window.closeModal = function() { document.getElementById('modal').classList.remove('show'); }
+
+  window.saveEntry = async function() {
+    const title = document.getElementById('m-title').value.trim();
+    const content = document.getElementById('m-content').value.trim();
+    if (!title || !content) { showAlert('제목과 내용을 모두 입력하세요', '⚠️'); return; }
+    if (editingId) {
+      await updateDoc(doc(db, 'memos', editingId), { title, content, updatedAt: Date.now() });
+    } else {
+      await addDoc(collection(db, 'memos'), { uid: currentUser.uid, title, content, updatedAt: Date.now() });
+    }
+    closeModal();
+    loadList();
+  }
+
+  window.openConfirm = function(docId, name) {
+    deleteTargetId = docId;
+    document.getElementById('confirm-name').textContent = name;
+    document.getElementById('confirm-modal').classList.add('show');
+  }
+  window.closeConfirm = function() { document.getElementById('confirm-modal').classList.remove('show'); }
+  window.confirmDelete = async function() {
+    await deleteDoc(doc(db, 'memos', deleteTargetId));
+    closeConfirm();
+    loadList();
+  }
+
+  window.viewEntry = function(docId, title, content) {
+    realContent = content;
+    window.currentViewId = docId;
+    window.currentViewTitle = title;
+    window.currentViewContent = content;
+    document.getElementById('v-title').textContent = title;
+    hideContent();
+    document.getElementById('view-modal').classList.add('show');
+  }
+  window.closeViewModal = function() {
+    document.getElementById('view-modal').classList.remove('show');
+  }
+</script>
+</body>
+</html>
